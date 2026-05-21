@@ -134,8 +134,19 @@ if (extension == NULL || strcmp(extension, ".sau") != 0)
     char header[11];
     sprintf(header, "%010d", metadata_size);
 
-    write(out_fd, header, 10);
-    write(out_fd, metadata, metadata_size);
+if (write(out_fd, header, 10) != 10)
+{
+    printf("Arsiv dosyasina yazma hatasi!\n");
+    close(out_fd);
+    return 1;
+}
+
+if (write(out_fd, metadata, metadata_size) != metadata_size)
+{
+    printf("Arsiv dosyasina yazma hatasi!\n");
+    close(out_fd);
+    return 1;
+}
 
     char buffer[BUFFER_SIZE];
 
@@ -154,7 +165,13 @@ if (extension == NULL || strcmp(extension, ".sau") != 0)
 
         while ((bytes_read = read(in_fd, buffer, BUFFER_SIZE)) > 0)
         {
-            write(out_fd, buffer, bytes_read);
+            if (write(out_fd, buffer, bytes_read) != bytes_read)
+{
+    printf("Arsiv dosyasina yazma hatasi!\n");
+    close(in_fd);
+    close(out_fd);
+    return 1;
+}
         }
 
         close(in_fd);

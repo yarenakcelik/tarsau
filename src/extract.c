@@ -193,7 +193,14 @@ int extract_archive(int argc, char *argv[])
                 return 1;
             }
 
-            write(out_fd, buffer, bytes_read);
+           if (write(out_fd, buffer, bytes_read) != bytes_read)
+{
+    printf("Dosyaya yazma hatasi!\n");
+    close(out_fd);
+    free(metadata);
+    close(fd);
+    return 1;
+}
 
             remaining -= bytes_read;
         }
