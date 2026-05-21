@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include "extract.h"
 
@@ -25,14 +26,23 @@ int extract_archive(int argc, char *argv[])
         return 1;
     }
 
-    char *archive_name = argv[2];
-    char output_dir[256] = "";
+    if (argc > 4)
+    {
+        printf("Arsiv acma islemi icin fazla parametre girildi!\n");
+        return 1;
+    }
 
-if (argc >= 4)
-{
-    strcpy(output_dir, argv[3]);
-    mkdir(output_dir, 0755);
-}
+    char *archive_name = argv[2];
+
+    char *extension = strrchr(archive_name, '.');
+
+    if (extension == NULL || strcmp(extension, ".sau") != 0)
+    {
+        printf("Arsiv dosyasi uygunsuz veya bozuk!\n");
+        return 1;
+    }
+
+    char output_dir[256] = "";
 
     int fd = open(archive_name, O_RDONLY);
 
@@ -40,6 +50,18 @@ if (argc >= 4)
     {
         printf("Arsiv dosyasi uygunsuz veya bozuk!\n");
         return 1;
+    }
+
+    if (argc >= 4)
+    {
+        strcpy(output_dir, argv[3]);
+
+        if (mkdir(output_dir, 0755) == -1 && errno != EEXIST)
+        {
+            printf("Dizin olusturulamadi!\n");
+            close(fd);
+            return 1;
+        }
     }
 
     char header[11];
@@ -54,6 +76,13 @@ if (argc >= 4)
     header[10] = '\0';
 
     int metadata_size = atoi(header);
+
+    if (metadata_size <= 0)
+    {
+        printf("Arsiv dosyasi uygunsuz veya bozuk!\n");
+        close(fd);
+        return 1;
+    }
 
     char *metadata = malloc(metadata_size + 1);
 
@@ -81,10 +110,34 @@ if (argc >= 4)
 
     while (token != NULL)
     {
-        sscanf(token, "%255[^,],%o,%ld",
-               files[file_count].name,
-               &files[file_count].permission,
-               &files[file_count].size);
+        if (file_count >= MAX_FILES)
+        {
+            printf("Arsiv dosyasi uygunsuz veya bozuk!\n");
+            free(metadata);
+            close(fd);
+            return 1;
+        }
+
+        int parsed = sscanf(token, "%255[^,],%o,%ld",
+                            files[file_count].name,
+                            &files[file_count].permission,
+                            &files[file_count].size);
+
+        if (parsed != 3)
+        {
+            printf("Arsiv dosyasi uygunsuz veya bozuk!\n");
+            free(metadata);
+            close(fd);
+            return 1;
+        }
+
+        if (files[file_count].size < 0)
+        {
+            printf("Arsiv dosyasi uygunsuz veya bozuk!\n");
+            free(metadata);
+            close(fd);
+            return 1;
+        }
 
         file_count++;
 
@@ -95,28 +148,26 @@ if (argc >= 4)
 
     for (int i = 0; i < file_count; i++)
     {
-char output_path[512];
+        char output_path[512];
 
-if (strlen(output_dir) > 0)
-{
-    sprintf(output_path, "%s/%s", output_dir, files[i].name);
-}
-else
-{
-    strcpy(output_path, files[i].name);
-}
+        if (strlen(output_dir) > 0)
+        {
+            sprintf(output_path, "%s/%s", output_dir, files[i].name);
+        }
+        else
+        {
+            strcpy(output_path, files[i].name);
+        }
 
-int out_fd = open(output_path,
-                  O_WRONLY | O_CREAT | O_TRUNC,
-                  files[i].permission);
+        int out_fd = open(output_path,
+                          O_WRONLY | O_CREAT | O_TRUNC,
+                          files[i].permission);
 
         if (out_fd == -1)
         {
             printf("%s dosyasi olusturulamadi!\n", files[i].name);
-
             free(metadata);
             close(fd);
-
             return 1;
         }
 
@@ -136,11 +187,9 @@ int out_fd = open(output_path,
             if (bytes_read <= 0)
             {
                 printf("Arsiv dosyasi uygunsuz veya bozuk!\n");
-
                 close(out_fd);
                 free(metadata);
                 close(fd);
-
                 return 1;
             }
 
@@ -155,7 +204,6 @@ int out_fd = open(output_path,
     }
 
     free(metadata);
-
     close(fd);
 
     printf("Dosyalar acildi.\n");

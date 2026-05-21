@@ -10,6 +10,30 @@
 #define MAX_METADATA_SIZE 8192
 #define BUFFER_SIZE 4096
 
+int is_ascii_text_file(char *filename)
+{
+    int fd = open(filename, O_RDONLY);
+
+    if (fd == -1)
+        return 0;
+
+    char ch;
+
+    while (read(fd, &ch, 1) > 0)
+    {
+        unsigned char c = (unsigned char)ch;
+
+        if (!(c == 9 || c == 10 || c == 13 || (c >= 32 && c <= 126)))
+        {
+            close(fd);
+            return 0;
+        }
+    }
+
+    close(fd);
+    return 1;
+}
+
 int archive_files(int argc, char *argv[])
 {
     char *input_files[MAX_FILES];
@@ -40,6 +64,18 @@ int archive_files(int argc, char *argv[])
 
         input_files[file_count++] = argv[i];
     }
+    if (file_count == 0)
+{
+    printf("Arsivlenecek dosya belirtilmedi!\n");
+    return 1;
+}
+    char *extension = strrchr(output_name, '.');
+
+if (extension == NULL || strcmp(extension, ".sau") != 0)
+{
+    printf("Arsiv dosya adi .sau uzantili olmalidir!\n");
+    return 1;
+}
 
     long total_size = 0;
     char metadata[MAX_METADATA_SIZE] = "";
@@ -62,6 +98,13 @@ int archive_files(int argc, char *argv[])
             close(fd);
             return 1;
         }
+
+        if (!is_ascii_text_file(input_files[i]))
+{
+    printf("%s giris dosyasinin formati uyumsuzdur!\n", input_files[i]);
+    close(fd);
+    return 1;
+}
 
         total_size += file_info.st_size;
 
