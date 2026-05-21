@@ -7,12 +7,13 @@
 #include "archive.h"
 
 #define MAX_FILES 32
+#define MAX_METADATA_SIZE 8192
+#define BUFFER_SIZE 4096
 
 int archive_files(int argc, char *argv[])
 {
     char *input_files[MAX_FILES];
     int file_count = 0;
-
     char output_name[256] = "a.sau";
 
     for (int i = 2; i < argc; i++)
@@ -40,18 +41,8 @@ int archive_files(int argc, char *argv[])
         input_files[file_count++] = argv[i];
     }
 
-    printf("Arsivlenecek dosyalar:\n");
-
-    for (int i = 0; i < file_count; i++)
-    {
-        printf("%s\n", input_files[i]);
-    }
-
-    printf("Cikti dosyasi: %s\n", output_name);
-
-    printf("\nDosya kontrolleri:\n");
-
     long total_size = 0;
+    char metadata[MAX_METADATA_SIZE] = "";
 
     for (int i = 0; i < file_count; i++)
     {
@@ -74,20 +65,62 @@ int archive_files(int argc, char *argv[])
 
         total_size += file_info.st_size;
 
-        printf("%s dosyasi basariyla acildi.\n", input_files[i]);
-        printf("  Boyut: %ld byte\n", file_info.st_size);
-        printf("  Izinler: %o\n", file_info.st_mode & 0777);
+        char record[512];
+        sprintf(record, "|%s,%o,%ld|", input_files[i], file_info.st_mode & 0777, file_info.st_size);
+        strcat(metadata, record);
 
         close(fd);
     }
-
-    printf("\nToplam boyut: %ld byte\n", total_size);
 
     if (total_size > 200 * 1024 * 1024)
     {
         printf("Giris dosyalarinin toplam boyutu 200 MB'i gecemez!\n");
         return 1;
     }
+
+    int metadata_size = strlen(metadata);
+
+    int out_fd = open(output_name, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+
+    if (out_fd == -1)
+    {
+        printf("Arsiv dosyasi olusturulamadi!\n");
+        return 1;
+    }
+
+    char header[11];
+    sprintf(header, "%010d", metadata_size);
+
+    write(out_fd, header, 10);
+    write(out_fd, metadata, metadata_size);
+
+    char buffer[BUFFER_SIZE];
+
+    for (int i = 0; i < file_count; i++)
+    {
+        int in_fd = open(input_files[i], O_RDONLY);
+
+        if (in_fd == -1)
+        {
+            printf("%s dosyasi tekrar acilamadi!\n", input_files[i]);
+            close(out_fd);
+            return 1;
+        }
+
+        ssize_t bytes_read;
+
+        while ((bytes_read = read(in_fd, buffer, BUFFER_SIZE)) > 0)
+        {
+            write(out_fd, buffer, bytes_read);
+        }
+
+        close(in_fd);
+    }
+
+    close(out_fd);
+
+    printf("Dosyalar birlestirildi.\n");
+    printf("Olusturulan arsiv: %s\n", output_name);
 
     return 0;
 }
