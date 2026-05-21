@@ -26,6 +26,13 @@ int extract_archive(int argc, char *argv[])
     }
 
     char *archive_name = argv[2];
+    char output_dir[256] = "";
+
+if (argc >= 4)
+{
+    strcpy(output_dir, argv[3]);
+    mkdir(output_dir, 0755);
+}
 
     int fd = open(archive_name, O_RDONLY);
 
@@ -88,9 +95,20 @@ int extract_archive(int argc, char *argv[])
 
     for (int i = 0; i < file_count; i++)
     {
-        int out_fd = open(files[i].name,
-                          O_WRONLY | O_CREAT | O_TRUNC,
-                          files[i].permission);
+char output_path[512];
+
+if (strlen(output_dir) > 0)
+{
+    sprintf(output_path, "%s/%s", output_dir, files[i].name);
+}
+else
+{
+    strcpy(output_path, files[i].name);
+}
+
+int out_fd = open(output_path,
+                  O_WRONLY | O_CREAT | O_TRUNC,
+                  files[i].permission);
 
         if (out_fd == -1)
         {
@@ -133,7 +151,7 @@ int extract_archive(int argc, char *argv[])
 
         close(out_fd);
 
-        chmod(files[i].name, files[i].permission);
+        chmod(output_path, files[i].permission);
     }
 
     free(metadata);
