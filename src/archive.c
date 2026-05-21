@@ -2,6 +2,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include "archive.h"
 
@@ -50,6 +51,8 @@ int archive_files(int argc, char *argv[])
 
     printf("\nDosya kontrolleri:\n");
 
+    long total_size = 0;
+
     for (int i = 0; i < file_count; i++)
     {
         int fd = open(input_files[i], O_RDONLY);
@@ -60,9 +63,30 @@ int archive_files(int argc, char *argv[])
             return 1;
         }
 
+        struct stat file_info;
+
+        if (stat(input_files[i], &file_info) == -1)
+        {
+            printf("%s dosya bilgileri okunamadi!\n", input_files[i]);
+            close(fd);
+            return 1;
+        }
+
+        total_size += file_info.st_size;
+
         printf("%s dosyasi basariyla acildi.\n", input_files[i]);
+        printf("  Boyut: %ld byte\n", file_info.st_size);
+        printf("  Izinler: %o\n", file_info.st_mode & 0777);
 
         close(fd);
+    }
+
+    printf("\nToplam boyut: %ld byte\n", total_size);
+
+    if (total_size > 200 * 1024 * 1024)
+    {
+        printf("Giris dosyalarinin toplam boyutu 200 MB'i gecemez!\n");
+        return 1;
     }
 
     return 0;
