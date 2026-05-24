@@ -56,12 +56,26 @@ int extract_archive(int argc, char *argv[])
     {
         strcpy(output_dir, argv[3]);
 
-        if (mkdir(output_dir, 0755) == -1 && errno != EEXIST)
+      if (mkdir(output_dir, 0755) == -1)
+{
+    if (errno == EEXIST)
+    {
+        struct stat dir_info;
+
+        if (stat(output_dir, &dir_info) == -1 || !S_ISDIR(dir_info.st_mode))
         {
-            printf("Dizin olusturulamadi!\n");
+            printf("Belirtilen yol bir dizin degildir!\n");
             close(fd);
             return 1;
         }
+    }
+    else
+    {
+        printf("Dizin olusturulamadi!\n");
+        close(fd);
+        return 1;
+    }
+}
     }
 
     char header[11];

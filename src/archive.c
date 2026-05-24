@@ -42,19 +42,23 @@ int archive_files(int argc, char *argv[])
 
     for (int i = 2; i < argc; i++)
     {
-        if (strcmp(argv[i], "-o") == 0)
-        {
-            if (i + 1 < argc)
-            {
-                strcpy(output_name, argv[i + 1]);
-                break;
-            }
-            else
-            {
-                printf("Arsiv dosya adi eksik!\n");
-                return 1;
-            }
-        }
+    if (strcmp(argv[i], "-o") == 0)
+{
+    if (i + 1 >= argc)
+    {
+        printf("Arsiv dosya adi eksik!\n");
+        return 1;
+    }
+
+    if (i + 2 < argc)
+    {
+        printf("-o parametresinden sonra fazla parametre girildi!\n");
+        return 1;
+    }
+
+    strcpy(output_name, argv[i + 1]);
+    break;
+}
 
         if (file_count >= MAX_FILES)
         {
@@ -98,6 +102,12 @@ if (extension == NULL || strcmp(extension, ".sau") != 0)
             close(fd);
             return 1;
         }
+        if (!S_ISREG(file_info.st_mode))
+{
+    printf("%s giris dosyasi normal bir dosya degildir!\n", input_files[i]);
+    close(fd);
+    return 1;
+}
 
         if (!is_ascii_text_file(input_files[i]))
 {
@@ -122,6 +132,11 @@ if (extension == NULL || strcmp(extension, ".sau") != 0)
     }
 
     int metadata_size = strlen(metadata);
+    if (metadata_size <= 0)
+{
+    printf("Arsiv bilgisi olusturulamadi!\n");
+    return 1;
+}
 
     int out_fd = open(output_name, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 
